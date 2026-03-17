@@ -1,0 +1,331 @@
+---
+title: "hw 2 242"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+setwd("C:/Users/Cynthiali0621/Desktop")
+```
+
+```{r, warning=FALSE,  message=FALSE}
+library(dplyr)
+library(tidyverse)
+framingham_train <- read_csv("framingham_train_sp24.csv")
+framingham_test <- read_csv("framingham_test_sp24.csv")
+```
+
+
+a) i)
+
+```{r}
+model <- glm(TenYearCHD ~ ., family = binomial, data = framingham_train)
+
+summary(model)
+```
+
+
+
+
+$$
+P(Y = 1 \mid X) = \frac{1}{1 + e^{-(\beta_0 + \beta_1X_1 + \beta_2X_2 + \dots + \beta_kX_k)}}
+$$
+
+Where:
+- \( Y = 1 \) indicates that the patient experiences coronary heart disease within 10 years of their first examination
+
+- \( X_1, X_2, \dots, X_k \) are the features(predictors)
+
+- \( \beta_0, \beta_1, \dots, \beta_k \) are the coefficients from the logistic regression model.
+
+
+P(TenYearCHD = 1 | X) = 1 / (1 + exp( -( -9.082582 
++ 0.421662 * male 
++ 0.071141 * age 
+- 0.121964 * educationHighSchoolGED 
+- 0.087004 * educationSomeCollege 
++ 0.051935 * educationSomeHighSchool 
++ 0.150589 * currentSmoker 
++ 0.024958 * cigsPerDay 
++ 0.287261 * BPMeds 
++ 0.797512 * prevalentStroke 
++ 0.221532 * prevalentHyp 
+- 0.048145 * diabetes 
++ 0.002785 * totChol 
++ 0.009158 * sysBP 
++ 0.007651 * diaBP 
++ 0.005821 * BMI 
+- 0.004216 * heartRate 
++ 0.008203 * glucose) ))
+
+
+\newpage
+
+a) ii)
+
+I picked age since it has a very low p-value(and positive), where indicates it is a really useful predictors.
+
+
+coefficient of age is  0.071141
+
+
+odd ratio for age  = e^(0.071141) = 1.07373261149 = 1.0737
+
+
+If age increase by 1 unit(assuming all remaining predictors remain unchanged), log(odds) changed by 0.071141. In other words, if age increase by 1 unit, the odds of developing CHD increase by approximately 7.37%.
+
+
+\newpage
+
+a) iii)
+
+```{r}
+library(magick)
+img <- image_read("a_iii.jpg")
+
+# Display the image
+print(img)
+```
+
+
+
+\newpage
+
+a) iv)
+```{r}
+thres <- 0.1105
+#predict probabilities for the test set
+test_predictions <- predict(model, newdata = framingham_test, type = "response")
+
+#classify based on the threshold
+test_predicted_class <- ifelse(test_predictions >= thres, 1, 0)
+
+#confusion matrix
+conf_matrix <- table(test_predicted_class, framingham_test$TenYearCHD)
+
+#Accuracy
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+
+#True Positive Rate
+TPR <- conf_matrix[2,2] / (conf_matrix[2,2] + conf_matrix[1,2])
+
+#False Positive Rate
+FPR <- conf_matrix[2,1] / (conf_matrix[2,1] + conf_matrix[1,1])
+
+list(accuracy = accuracy, TPR = TPR, FPR = FPR)
+
+```
+
+
+We classified each patient as either high risk (CHD) or low risk based on the threshold of 0.1105. For example, if a patient's predicted probability of developing coronary heart disease (CHD) within 10 years of their first examination is greater than or equal to 11.05%, it is more effective to prescribe the medication. If the probability is less than 11.05%, the medication is not prescribed.
+
+Accuracy indicates the proportion of correct predictions in classifying patients as either high risk (CHD) or low risk based on the threshold. An accuracy of 0.5692 means that the model correctly predicted the risk category for approximately 57% of the patients in the test set. 
+
+True Positive Rate is the proportion of actual positive cases (people who actually experience CHD within 10 years) that are correctly predicted by the model as high risk.A TPR of 77.5% means that 77.5% of the people who actually experienced CHD (the true positives) were correctly identified as being at high risk by the model.
+
+False Positive Rate: how often the model incorrectly identifies low-risk patients as high-risk, which means  46.59% of the people who will not experience CHD within 10 years were incorrectly classified as high risk by the model.
+
+\newpage
+
+a) v)
+
+```{r}
+cost_without_medication <- function(p) {
+  return(p * 955000)
+}
+
+cost_with_medication <- function(p) {
+  return(0.1 * p * 1050000 + (1 - 0.1 * p) * 95000)
+}
+
+#expected cost without adjusting for treatment
+framingham_test$expected_cost_no_treatment <- ifelse(test_predictions >= 0.1105, 
+                                                     cost_without_medication(test_predictions), 
+                                                     0)
+
+#expected cost with treatment adjustment
+framingham_test$expected_cost_with_treatment <- ifelse(test_predictions >= 0.1105, 
+                                                       cost_with_medication(test_predictions), 
+                                                       cost_without_medication(test_predictions))
+
+#average expected cost per patient without adjusting for treatment
+average_cost_no_treatment <- mean(framingham_test$expected_cost_no_treatment)
+
+#average expected cost per patient with treatment adjustment
+average_cost_with_treatment <- mean(framingham_test$expected_cost_with_treatment)
+
+list(average_cost_no_treatment = average_cost_no_treatment, 
+     average_cost_with_treatment = average_cost_with_treatment)
+
+```
+
+
+Yes, this assumption is reasonable because the data was collected before the option of prescribing the medication was available. Without adjusting for treatment, the expected cost per patient is 115097.50. With treatment adjustment, the expected cost per patient drops to 87841.34.
+
+
+\newpage
+
+
+a) vi)
+
+```{r}
+
+#for this question, I have asked chatgpt on how to built the matix, because my own matrix always occurs an error(OpenAI, 2024)
+
+library(readr)
+
+baseline_predictions <- rep(0, nrow(framingham_test))
+
+conf_matrix <- table(Predicted = baseline_predictions, Actual = framingham_test$TenYearCHD)
+
+TN <- ifelse(dim(conf_matrix)[1] >= 1 && dim(conf_matrix)[2] >= 1, conf_matrix[1, 1], 0)  
+FN <- ifelse(dim(conf_matrix)[1] >= 1 && dim(conf_matrix)[2] >= 2, conf_matrix[1, 2], 0)  
+FP <- 0 
+TP <- 0  
+
+#Accuracy
+accuracy_baseline <- (TP + TN) / sum(conf_matrix)
+
+#True Positive Rate
+TPR_baseline <- ifelse((TP + FN) > 0, TP / (TP + FN), 0)
+
+#False Positive Rate
+FPR_baseline <- ifelse((FP + TN) > 0, FP / (FP + TN), 0)
+
+#expected cost based on actual CHD outcomes
+#If TenYearCHD = 1, the cost is $955,000; if TenYearCHD = 0, the cost is $0
+framingham_test$expected_cost_baseline <- framingham_test$TenYearCHD * 955000
+
+#average expected cost per patient for the baseline model
+average_cost_baseline <- mean(framingham_test$expected_cost_baseline)
+
+list(
+  accuracy_baseline = accuracy_baseline,
+  TPR_baseline = TPR_baseline,
+  FPR_baseline = FPR_baseline,
+  average_cost_baseline = average_cost_baseline
+)
+
+
+```
+
+
+\newpage
+
+
+a) vii)
+
+
+```{r}
+intercept <- -9.082582
+beta_male <- 0.421662
+beta_age <- 0.071141
+beta_educationHighSchoolGED <- -0.121964
+beta_educationSomeCollege <- -0.087004
+beta_educationSomeHighSchool <- 0.051935
+beta_currentSmoker <- 0.150589
+beta_cigsPerDay <- 0.024958
+beta_BPMeds <- 0.287261
+beta_prevalentStroke <- 0.797512
+beta_prevalentHyp <- 0.221532
+beta_diabetes <- -0.048145
+beta_totChol <- 0.002785
+beta_sysBP <- 0.009158
+beta_diaBP <- 0.007651
+beta_BMI <- 0.005821
+beta_heartRate <- -0.004216
+beta_glucose <- 0.008203
+
+male <- 0                     
+age <- 39
+educationHighSchoolGED <- 1    
+educationSomeCollege <- 0     
+educationSomeHighSchool <- 0   
+currentSmoker <- 1             
+cigsPerDay <- 6
+BPMeds <- 0                    
+prevalentStroke <- 0           
+prevalentHyp <- 0              
+diabetes <- 1                 
+totChol <- 230
+sysBP <- 110
+diaBP <- 50
+BMI <- 28
+heartRate <- 72
+glucose <- 80
+
+linear_combination <- intercept + 
+  beta_male * male + 
+  beta_age * age + 
+  beta_educationHighSchoolGED * educationHighSchoolGED + 
+  beta_educationSomeCollege * educationSomeCollege + 
+  beta_educationSomeHighSchool * educationSomeHighSchool + 
+  beta_currentSmoker * currentSmoker + 
+  beta_cigsPerDay * cigsPerDay + 
+  beta_BPMeds * BPMeds + 
+  beta_prevalentStroke * prevalentStroke + 
+  beta_prevalentHyp * prevalentHyp + 
+  beta_diabetes * diabetes + 
+  beta_totChol * totChol + 
+  beta_sysBP * sysBP + 
+  beta_diaBP * diaBP + 
+  beta_BMI * BMI + 
+  beta_heartRate * heartRate + 
+  beta_glucose * glucose
+
+predicted_prob <- 1 / (1 + exp(-linear_combination))
+
+predicted_prob
+
+```
+
+2.58% is less than the threshold of 11.05%, which means , the patient is considered low risk for experiencing coronary heart disease within 10 years of their first examination, so the physician should not prescribe the preventive medication
+
+\newpage
+
+b)
+
+```{r}
+library(pROC)
+
+test_predictions <- predict(model, newdata = framingham_test, type = "response")
+
+actual_outcomes_test <- framingham_test$TenYearCHD
+
+roc_curve <- roc(actual_outcomes_test, test_predictions)
+
+plot(roc_curve, col = "blue", main = "ROC Curve for Logistic Regression Model")
+
+auc_value <- auc(roc_curve)
+auc_value
+
+```
+
+Area under the curve: 0.71 indicates the model is performing relatively good in predicting CHD risk.AUC and ROC shows the model has reasonably high true positive rate and low false positive rates
+
+Decision-makers can use the ROC curve to choose and study different thresholds to determine when it is most beneficial to prescribe medication, because the curve shows the trade-off between  TPR and FPR. For example, they could choose a threshold that maximizes TPR and min those midication that is uncessary for people who do not need it. 
+
+\newpage
+
+c)
+
+```{r}
+img1 <- image_read("c.jpg")
+
+# Display the image
+print(img1)
+```
+
+\newpage
+
+d)
+
+1. The analysis assumes an amount of co-payment. In reality, low-income patients may not have ability to pay the co-payment. My suggestion would be taht the insurance company could adjust the co-payment based on the patient’s ability to pay rather than a fixed amount. 
+
+2. The threshold and all assumptions are based on cost consideration, but in reality, we should ensure that patients should fully understand their risk such as side-effects. We should provide all details for patients about the disease and all effect of treatment rather than just the cost concerns. 
+
