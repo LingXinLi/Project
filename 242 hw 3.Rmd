@@ -1,0 +1,299 @@
+---
+title: "242 hw3"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Problem 1
+
+```{r}
+setwd("C:/Users/Cynthiali0621/Desktop")
+library(magick)
+img <- image_read("problem1.jpg")
+
+# Display the image
+print(img)
+```
+
+
+Problem 2
+
+a)
+
+Yes, because there are so many missing values, if we remove entire columns, we would lose a lot of data points. Therefore, this approach helps in keeping our dataset comprehensive. Additionally, some missing data might reflect the quality of the restaurant. For instance, if they missed information such as whether or not they have wheelchair access, it could indicate that restaurants with missing data in this area might have lower quality and ratings
+
+
+\newpage
+
+b)
+
+b(i)
+```{r}
+library(stats)
+library(dplyr)
+library(tidyverse)
+dat_train <- read_csv("yelp242a_train.csv")
+dat_test <- read_csv("yelp242a_test.csv")
+```
+
+
+```{r}
+#Convert categorical variables to factors, treating "(Missing)" as an explicit category
+dat_train$GoodForKids <- factor(dat_train$GoodForKids, levels = c("TRUE", "FALSE", "(Missing)"))
+dat_train$Alcohol <- factor(dat_train$Alcohol, levels = c("'beer_and_wine'", "'full_bar'", "'none'", "(Missing)"))
+dat_train$BusinessAcceptsCreditCards <- factor(dat_train$BusinessAcceptsCreditCards, levels = c("TRUE", "FALSE", "(Missing)"))
+dat_train$WiFi <- factor(dat_train$WiFi, levels = c("'free'", "'no'", "'paid'", "(Missing)"))
+dat_train$BikeParking <- factor(dat_train$BikeParking, levels = c("TRUE", "FALSE", "(Missing)"))
+dat_train$ByAppointmentOnly <- factor(dat_train$ByAppointmentOnly, levels = c("TRUE", "FALSE", "(Missing)"))
+dat_train$WheelechairAccessible <- factor(dat_train$WheelechairAccessible, levels = c("TRUE", "FALSE", "(Missing)"))
+dat_train$OutdoorSeating <- factor(dat_train$OutdoorSeating, levels = c("TRUE", "FALSE", "(Missing)"))
+dat_train$RestaurantsReservations <- factor(dat_train$RestaurantsReservations, levels = c("TRUE", "FALSE", "(Missing)"))
+dat_train$DogsAllowed <- factor(dat_train$DogsAllowed, levels = c("TRUE", "FALSE", "(Missing)"))
+dat_train$Caters <- factor(dat_train$Caters, levels = c("TRUE", "FALSE", "(Missing)"))
+
+#linear regression
+model <- lm(stars ~ review_count + GoodForKids + Alcohol + BusinessAcceptsCreditCards + WiFi +
+                BikeParking + ByAppointmentOnly + WheelechairAccessible + OutdoorSeating +
+                RestaurantsReservations + DogsAllowed + Caters, data = dat_train)
+
+summary(model)
+
+
+```
+
+
+\newpage
+
+b(ii)
+
+```{r}
+library(rpart)
+#regression tree model
+tree_model <- rpart(stars ~ review_count + GoodForKids + Alcohol + BusinessAcceptsCreditCards + WiFi + 
+                    BikeParking + ByAppointmentOnly + WheelechairAccessible + OutdoorSeating +
+                    RestaurantsReservations + DogsAllowed + Caters, data = dat_train, method = "anova")
+
+#cross-validation to select cp
+printcp(tree_model)
+
+best_cp <- tree_model$cptable[which.min(tree_model$cptable[,"xerror"]),"CP"]
+
+#Prune the tree using the selected cp
+pruned_tree <- prune(tree_model, cp = best_cp)
+
+plot(pruned_tree)
+text(pruned_tree)
+
+
+```
+
+
+I let R automatically selected the best cp value which indicates it is the cp that has the lowest average loss of predictions(optimal model complexity), and then prune the tree using the selected cp.
+
+\newpage
+
+b(iii)
+
+```{r}
+# 1.linear regression
+#make predictions
+linear_preds <- predict(model, newdata = dat_test)
+#rss
+linear_rss <- sum((dat_test$stars - linear_preds)^2)
+#tss
+linear_tss <- sum((dat_test$stars - mean(dat_test$stars))^2)
+#OSR square
+osr2_linear <- 1 - (linear_rss / linear_tss)
+
+#2.regression Tree
+#make predictions
+tree_preds <- predict(pruned_tree, newdata = dat_test)
+#rss
+tree_rss <- sum((dat_test$stars - tree_preds)^2)
+#tss
+tree_tss <- sum((dat_test$stars - mean(dat_test$stars))^2)
+#OSR square
+osr2_tree <- 1 - (tree_rss / tree_tss)
+
+osr2_linear
+osr2_tree
+
+```
+
+both osr square shows poor performance. Our original linear regression model explains about 17.59% of the variation in the average star rating of the business for the test data, it is not a good result.
+
+
+Our original regression Tree model explains about 14.11% of the variation in the average star rating of the business for the test data, it is not a good result.
+
+
+\newpage
+
+c(i)
+
+```{r}
+#Create the new binary variable in the training data
+dat_train$fourOrAbove <- ifelse(dat_train$stars >= 4, 1, 0)
+
+#Create the new binary variable in the test data
+dat_test$fourOrAbove <- ifelse(dat_test$stars >= 4, 1, 0)
+
+
+```
+
+
+\newpage
+d(i)
+
+It would be reason when false positives and false negatives have the same weight, because when calculating the error rate, we take into account into those weighted coefficient, for example, if the loss of false negaive is three times larger than loss of loss of false positive, then it will occur a larger error rate for our region that made mistake due to false negative prediction. 
+
+d(ii)
+
+```{r}
+
+
+# Predict using the previously built linear regression model
+linear_preds <- predict(model, newdata = dat_train)
+
+# Apply threshold to classify as fourOrAbove (1 if prediction >= 4, otherwise 0)
+linear_class <- ifelse(linear_preds >= 4, 1, 0)
+
+# Accuracy for linear regression model after thresholding
+linear_accuracy <- mean(linear_class == dat_train$fourOrAbove)
+
+# Predict using the previously built regression tree model
+tree_preds <- predict(pruned_tree, newdata = dat_train)
+
+# Apply threshold to classify as fourOrAbove
+tree_class <- ifelse(tree_preds >= 4, 1, 0)
+
+# Accuracy for regression tree model after thresholding
+tree_accuracy <- mean(tree_class == dat_train$fourOrAbove)
+
+
+linear_accuracy
+tree_accuracy
+
+```
+
+
+d(iii)
+
+```{r}
+logis_model <- glm(fourOrAbove ~ review_count + GoodForKids + Alcohol + BusinessAcceptsCreditCards + WiFi + 
+                   BikeParking + ByAppointmentOnly + WheelechairAccessible + OutdoorSeating +
+                   RestaurantsReservations + DogsAllowed + Caters, family = binomial, data = dat_train)
+
+summary(logis_model)
+
+#Make predictions on the training data
+logis_preds <- predict(logis_model, newdata = dat_train, type = "response")
+
+#Convert probabilities to binary predictions (threshold at 0.5)
+logis_class <- ifelse(logis_preds >= 0.5, 1, 0)
+
+accuracy <- mean(logis_class == dat_train$fourOrAbove)
+
+accuracy
+
+```
+
+
+\newpage
+
+d(iv)
+
+```{r}
+tree_model <- rpart(fourOrAbove ~ review_count + GoodForKids + Alcohol + BusinessAcceptsCreditCards + WiFi + 
+                    BikeParking + ByAppointmentOnly + WheelechairAccessible + OutdoorSeating +
+                    RestaurantsReservations + DogsAllowed + Caters, data = dat_train, method = "class")
+
+#choose the best cp value based on cross-validation
+printcp(tree_model)
+best_cp <- tree_model$cptable[which.min(tree_model$cptable[,"xerror"]),"CP"]
+
+#prune the tree using the selected cp
+pruned_tree <- prune(tree_model, cp = best_cp)
+
+plot(pruned_tree)
+text(pruned_tree)
+
+```
+
+\newpage
+d v)
+```{r}
+
+#Baseline Model
+baseline_class <- rep(as.numeric(names(sort(table(dat_train$fourOrAbove), decreasing=TRUE))[1]), nrow(dat_test))
+
+#Predictions for Logistic Regression on test set
+logis_preds_test <- predict(logis_model, newdata = dat_test, type = "response")
+logis_class_test <- ifelse(logis_preds_test >= 0.5, 1, 0)
+
+#Predictions for Pruned Tree on test set
+tree_class_test <- predict(pruned_tree, newdata = dat_test, type = "class")
+
+#Accuracy calculation function
+calc_accuracy <- function(pred, actual) {
+  mean(pred == actual)
+}
+
+#Confusion matrix 
+calc_tpr_fpr <- function(pred, actual) {
+  cm <- table(Predicted = pred, Actual = actual)
+  
+  #Handling cases where confusion matrix might not have all elements (avoid out-of-bounds error)
+  true_positive <- ifelse("1" %in% rownames(cm) & "1" %in% colnames(cm), cm["1", "1"], 0)
+  false_positive <- ifelse("1" %in% rownames(cm) & "0" %in% colnames(cm), cm["1", "0"], 0)
+  actual_positives <- sum(cm[, "1"])
+  actual_negatives <- sum(cm[, "0"])
+
+  TPR <- ifelse(actual_positives > 0, true_positive / actual_positives, 0)  # True Positive Rate
+  FPR <- ifelse(actual_negatives > 0, false_positive / actual_negatives, 0)  # False Positive Rate
+  return(list(TPR = TPR, FPR = FPR))
+}
+
+#calculate accuracy, TPR, and FPR
+baseline_accuracy <- calc_accuracy(baseline_class, dat_test$fourOrAbove)
+logis_accuracy_test <- calc_accuracy(logis_class_test, dat_test$fourOrAbove)
+tree_accuracy_test <- calc_accuracy(tree_class_test, dat_test$fourOrAbove)
+
+baseline_metrics <- calc_tpr_fpr(baseline_class, dat_test$fourOrAbove)
+logis_metrics <- calc_tpr_fpr(logis_class_test, dat_test$fourOrAbove)
+tree_metrics <- calc_tpr_fpr(tree_class_test, dat_test$fourOrAbove)
+
+performance_table <- data.frame(
+  Model = c("Baseline", "Logistic Regression", "Classification Tree"),
+  Accuracy = c(baseline_accuracy, logis_accuracy_test, tree_accuracy_test),
+  TPR = c(baseline_metrics$TPR, logis_metrics$TPR, tree_metrics$TPR),
+  FPR = c(baseline_metrics$FPR, logis_metrics$FPR, tree_metrics$FPR)
+)
+
+
+performance_table
+
+
+```
+
+
+\newpage
+e)
+
+1. From our logistic regression tree in d iii), the negative coefficient (-0.4425) means that not offering reservations is associated with a decrease of 0.4425 in the log-odds of receiving a 4-star rating or above. The odds is e^(-0.4425) equals to 0.64, which means if a restaurant does not offer reservations, the odds of receiving a 4-star rating or above are about 64.2% of the odds when reservations are offered(not offering reservations results in a 35.8% decrease in the odds of getting a 4-star rating or above compared to a restaurant that offers reservations)
+
+
+Restaurants that do not offer reservations are less likely to receive a 4-star rating or higher. Also, p-value of is extremely small (9.98e-08), which means reservations is a significant factor to predictor whether or not the restaurant can have higher ratings.
+
+From our linear regression model in b i), we can also see a negative coefficient (-0.2090) indicates that not offering reservations is associated with a decrease in the average star rating of the restaurant, and the p-value indicates that this predictor is also significant.
+
+Therefore, I suggest that restaurants can offer reservations in order to increase ratings.
+
+2. Based on the linear regression model in b i), the negative coefficient -0.1090 indicates that having a full bar is associated with a slightly lower average star rating compared to other alcohol offerings, that might due to they may tend to focus more on alcohol compared to the food, so that might result in a lower rating. Based on the p-value that is small, we can see this is also a useful predictor. I suggest the restaurant with full bar can focus more on food quality. 
+
+3. Wheel chair,review count, cater, alcohol is four predictors left out after we pruned the classification tree model, where I think we might need to focus on these factors. For example, CatersFALSE , we can also look at the linear regression model, CatersFALSE 's coefficient -0.231 means every unit increase in not offering catering is associated with a decrease in 0.231 average star rating. The p-value < 2e-16 means that CatersFALSE  is a useful predictor to predict star rating. I suggest restaurant offer catering. 
+
+
