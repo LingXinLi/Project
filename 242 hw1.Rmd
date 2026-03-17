@@ -1,0 +1,409 @@
+---
+title: "242 hw1"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+setwd("C:/Users/Cynthiali0621/Desktop")
+```
+
+```{r, warning=FALSE,  message=FALSE}
+library(dplyr)
+library(tidyverse)
+library(car)
+data <- read_csv("Accord-242A-Fall24.csv")
+
+```
+
+```{r}
+data
+```
+
+```{r}
+#a)
+training_data <- data %>% filter(Year >= 2014 & Year <= 2018)
+testing_data <- data %>% filter(Year >= 2019 & Year <= 2023)
+
+```
+
+
+
+
+```{r}
+#Model 0 
+mod0 <- lm(AccordSales ~ Unemployment + AccordQueries + CPIEnergy + CPIAll + MilesTraveled, data = training_data)
+summary(mod0)
+
+vif_values <- vif(mod0)
+print(vif_values)
+
+```
+
+
+```{r}
+#Model 1
+mod1 <- lm(AccordSales ~ Unemployment + AccordQueries + CPIEnergy  + MilesTraveled, data = training_data)
+summary(mod1)
+
+vif_values <- vif(mod1)
+print(vif_values)
+```
+
+```{r}
+#Model 2
+mod2 <- lm(AccordSales ~  AccordQueries + CPIEnergy + CPIAll + MilesTraveled, data = training_data)
+summary(mod2)
+
+vif_values <- vif(mod2)
+print(vif_values)
+```
+
+```{r}
+mod3 <- lm(AccordSales ~  AccordQueries + CPIEnergy + CPIAll, data = training_data)
+summary(mod3)
+```
+
+
+I will choose model 3 which include AccordQueries , CPIEnergy , CPIAll.I wrote the details of how I choose them in question ii). Basically, I compared the p-value for each independent variable and calculated the VIF at the same time to avoid multicollinearity. I found that some variables had large p-values, but I did not prioritize that initially. I tried removing the variable with the highest VIF to see if the p-values for other variables, as well as the Multiple R-squared and Adjusted R-squared values, would improve. Then, based on the full model, I kept the variable with the highest VIF and removed the one with the second highest VIF to compare the p-values and R-squared values. And I remove the one with big p-value after there isn't problem of multicollinearity. Overall, the final model(model 3) is the best.
+
+\newpage
+
+```{r}
+#a i)
+mod3 <- lm(AccordSales ~  AccordQueries + CPIEnergy + CPIAll, data = training_data)
+summary(mod3)
+```
+
+
+
+
+AccordSales hat = 141902.15 + 245.21 × AccordQueries + 67.03 × CPIEnergy − 610.92 × CPIAll
+
+
+AccordQueries (245.21):
+
+For every additional unit increase in the number of Google searches for “Honda Accord” in the United States in the given month and year, this model predicts an increase of about 245.21 units in the number of units of the Honda Accord sold in the United States in the given month and year, if all other independent variables stay unchanged.
+
+CPIEnergy:(67.03)
+For every additional unit increase in the monthly consumer price index for the energy sector of the US economy for the given month and year, this model predicts an increase of about 67.03 units in the number of units of the Honda Accord sold in the United States in the given month and year, if all other independent variables stay unchanged.
+
+CPIAll(− 610.92):
+For every additional unit increase in the consumer price index for all products for the given month and year, this model predicts an decrease of about 610.92 units in the number of units of the Honda Accord sold in the United States in the given month and year, if all other independent variables stay unchanged.
+
+
+
+
+\newpage
+
+a ii)
+First, I generated the full model, called Model 0, and noticed that both the Multiple R-squared and Adjusted R-squared values were already low. It would be beneficial to increase these values in my subset. Additionally, I examined the p-values for each independent variable and found that Unemployment had the highest p-value. I suspect this might be due to multicollinearity, as I learned in an economics course that it is associated with CPI. To investigate further, I calculated the VIF for each independent variable, which confirmed that Unemployment and CPIALL had very high VIF values.
+
+Next, I generated Model 1, excluding CPIALL, and Model 2, excluding Unemployment. I compared the p-values for each model and found that the Multiple R-squared and Adjusted R-squared were highest in Model 2. Additionally, the p-values for each independent variable were relatively smaller overall in Model 2. 
+
+Finally, I built a Model 3, I remove the variable MilesTraveled, as its p-value indicates that it is likely an predictor that is not useful, and the Multiple R-squared and Adjusted R-squared decreases here, which is not good, but the Multiple R-squared and Adjusted R-squared for all of my model is relatively low, and they are roughly similar values, so I think it would be better to focus on the p-value first. Therefore, I chose model 3. 
+
+
+\newpage
+
+a iii)
+AccordQueries (+):
+It is very reasonable, because a higher number of Google searches indicates that your car is more famous, and people have a higher interest in your car, and it is reasonbale for the number of units of the car sold increase.
+
+CPIEnergy(+):
+It depends on the background of Honda. The positive coefficient for CPI energy indicates that if the prices paid by consumers for the energy sector increase, car sales at Honda also increase. This suggests that the price of energy, such as fuel, might be rising. It would be reasonable if Honda cars are fuel-efficient, as consumers would spend less on energy if they purchase a Honda compared to other cars. However, there is no additional information to say whether or not it is a fuel-efficient car in this question, the interpretation depends on the context.
+
+CPIAll(-);
+This is reasonable, because if the overall price of goods increases, consumer might not have enough money to purchase expensive things such as cars.
+
+
+\newpage
+
+a iv)
+Multiple R-squared:  0.2268: About 22.68% of the variability in AccordSales is explained by the model using independent variables: AccordQueries, CPIEnergy, and CPIAll
+Adjusted R-squared:  0.1854 :After taking into account about the number of predictors, about 18.54% of the variability in AccordSales is explained by the model using independent variables: AccordQueries, CPIEnergy, and CPIAll 
+
+Both of R-squared are small, indicating a small proportion of the variation in the AccordSales that is predictable from the independent variable: AccordQueries, CPIEnergy, and CPIAll. This is not what we want.
+
+Overal p-value: 0.002267: A p-value of 0.002267 indicates that the model is statistically significant overall, which means there is at least one independent variable is useful to predict the dependent variable AccordSales. In other word, we have strong evidence to against our null hypothesis assuming that there is no linear relationship between each of the independent variable and the dependent varaible. This is what we hope for, because we want our predictor to be useful.
+
+
+
+```{r}
+
+sd0 <- sd(training_data$AccordSales)
+train_pred <- predict(mod3, newdata = training_data)
+
+# Calculate Mean Squared Error (MSE)
+mse0 <- mean((train_pred - training_data$AccordSales)^2)
+rmse0 <- sqrt(mse0)
+
+sd0
+rmse0
+
+```
+The square of MSE is lower than the standard deviation, which means the model 3 capture the pattern of the sales of car better than the typical variation in monthly sales from the average value.
+
+
+
+\newpage
+b)
+
+```{r}
+#need k-1 dummy variables, omit April(All variables 0 if it is April)
+training_data$IsJanuary <- ifelse(training_data$MonthFactor == "January", 1, 0)
+training_data$IsFebruary <- ifelse(training_data$MonthFactor == "February", 1, 0)
+training_data$IsMarch <- ifelse(training_data$MonthFactor == "March", 1, 0)
+#training_data$IsApril <- ifelse(training_data$MonthFactor == "April", 1, 0)
+training_data$IsMay <- ifelse(training_data$MonthFactor == "May", 1, 0)
+training_data$IsJune <- ifelse(training_data$MonthFactor == "June", 1, 0)
+training_data$IsJuly <- ifelse(training_data$MonthFactor == "July", 1, 0)
+training_data$IsAugust <- ifelse(training_data$MonthFactor == "August", 1, 0)
+training_data$IsSeptember <- ifelse(training_data$MonthFactor == "September", 1, 0)
+training_data$IsOctober <- ifelse(training_data$MonthFactor == "October", 1, 0)
+training_data$IsNovember <- ifelse(training_data$MonthFactor == "November", 1, 0)
+training_data$IsDecember <- ifelse(training_data$MonthFactor == "December", 1, 0)
+
+#IsJanuary: 1 if from January, otherwise 0
+#other month except April follows the same rule as January
+#All variables 0 if it is April
+
+```
+
+```{r}
+mod_dummy <- lm(AccordSales ~ Unemployment + AccordQueries + CPIEnergy + CPIAll + MilesTraveled
+                + IsJanuary + IsFebruary + IsMarch + IsMay + IsJune + 
+                IsJuly + IsAugust + IsSeptember + IsOctober + IsNovember + IsDecember, 
+                data = training_data)
+summary(mod_dummy)
+
+```
+
+
+AccordSales hat = 97750 + 
+                  762.8 * Unemployment + 
+                  10.66 * AccordQueries + 
+                  67.52 * CPIEnergy - 
+                  639.8 * CPIAll + 
+                  0.2497 * MilesTraveled - 
+                  8190 * IsJanuary - 
+                  4825 * IsFebruary + 
+                  430.2 * IsMarch + 
+                  5573 * IsMay + 
+                  1537 * IsJune + 
+                  3895 * IsJuly + 
+                  8698 * IsAugust + 
+                  3046 * IsSeptember - 
+                  25.63 * IsOctober -
+                  1494 * IsNovember + 
+                  3256 * IsDecember
+
+
+IsJanuary: 1 if from January, otherwise 0
+other month except April follows the same rule as January
+All variables 0 if it is April
+
+Example of interpretation of the coefficient of the
+MonthFactor dummy variables: Let's say, for each MonthFactor dummy variable is 0, only IsJanuary is 1, then the model looks like: 97750 + 
+                  762.8 * Unemployment + 
+                  10.66 * AccordQueries + 
+                  67.52 * CPIEnergy - 
+                  639.8 * CPIAll + 
+                  0.2497 * MilesTraveled - 
+                  8190 * 1
+             
+The important part to interpret is that we predict that the sale of car happened in Janunary.
+
+If All MonthFactor dummy variables are 0, then it indicates that we predict the sale of the car happened in April.
+
+For the number of coefficient itself, I do not really remember or know what does it mean, and I ask chatgpt about what does the coefficient of dummy variables indicates, and I realized that it indicates that these coefficients represent the difference in sales for each month compared to the reference month (April). For example: IsJanuary (-8,190) indicates that AccordSales in January are expected to be 8,190 units lower than in April, holding all other variables constant. 
+
+\newpage
+
+b ii) Multiple R-squared:  0.7481,	Adjusted R-squared:  0.6544 
+
+\newpage
+
+IsJanuary IsFebruary IsMay IsAugust are significant.
+
+
+\newpage
+
+b iii) Yes, because it improve the R-squared by aproximately 50%
+
+\newpage
+b iv) 
+
+```{r}
+training_data$Season <- factor(
+  ifelse(training_data$MonthFactor %in% c("March", "April", "May"), "Spring",
+  ifelse(training_data$MonthFactor %in% c("June", "July", "August"), "Summer",
+  ifelse(training_data$MonthFactor %in% c("September", "October", "November"), "Fall",
+  ifelse(training_data$MonthFactor %in% c("December", "January", "February"), "Winter", NA))))
+)
+
+season_dummies <- model.matrix(~ Season - 1, data = training_data)
+```
+
+
+
+
+```{r}
+# Add dummy variables to training_data
+training_data <- cbind(training_data, season_dummies)
+training_data
+```
+
+
+```{r}
+
+mod_season0 <- lm(AccordSales ~ Unemployment + AccordQueries + CPIEnergy + 
+                CPIAll + MilesTraveled + SeasonFall + SeasonSpring + SeasonSummer, 
+                data = training_data)
+summary(mod_season0)
+
+```
+I grouped all months into season, and whether or not it is a new way to improve the best model I have generated so far is depending on how to evaluate it through differnt perspective. First, I would say I cannot choose best model right now, and I will list the disavantages and advantages for Model 3(the best model I think before considering the month), and also for the full model + month dummy variables + this new season model.
+
+Model 3: AccordSales ~  AccordQueries + CPIEnergy + CPIAll
+advantages: Remove multicollinearity, keep the independent variables that is meaningful(good predictor)
+disadvantages: low R-squared
+         
+
+Full model plus the month dummy variables: 
+advantages: relatively higher R-squared(much higher than Model 3
+disadvantages: existing multicollinearity, existing independent variables that is not meaningful
+
+mod_season0:
+advantages: In the full model plus the month dummy variables, 2/3 month dummy variables are not statistically significant, however in the season model, all p-value for season dummy variables are small, but that is also due to other reason that we need to verify.
+disadvantages: decreased R-squared compared to the last model, existing multicollinearity, existing independent variables that is not meaningful
+
+
+\newpage
+
+c) 
+
+```{r}
+mod_final1 <- lm(AccordSales ~   CPIEnergy + CPIAll 
+                + IsJanuary + IsFebruary + IsMarch + IsMay + IsJune + 
+                IsJuly + IsAugust + IsSeptember + IsOctober + IsNovember + IsDecember, 
+                data = training_data)
+
+summary(mod_final1)
+
+vif_values1 <- vif(mod_final1)
+vif_values1
+```
+
+Reason for selected variables:
+1. use model 3 + month dummy var as model 3 exclude remove multicollinearity, keep the independent variables that is meaningful(good predictor)
+2. use model 3 + season model
+3. choose 1 as it perform better than 2(e.g., in the perspective of R-squared)
+4. then, remove AccordQueries as it is not significant
+
+Training set: Multiple R-squared:  0.7439,	Adjusted R-squared:  0.6715 
+
+```{r}
+testing_data$IsJanuary <- ifelse(testing_data$MonthFactor == "January", 1, 0)
+testing_data$IsFebruary <- ifelse(testing_data$MonthFactor == "February", 1, 0)
+testing_data$IsMarch <- ifelse(testing_data$MonthFactor == "March", 1, 0)
+#testing_data$IsApril <- ifelse(testing_data$MonthFactor == "April", 1, 0)
+testing_data$IsMay <- ifelse(testing_data$MonthFactor == "May", 1, 0)
+testing_data$IsJune <- ifelse(testing_data$MonthFactor == "June", 1, 0)
+testing_data$IsJuly <- ifelse(testing_data$MonthFactor == "July", 1, 0)
+testing_data$IsAugust <- ifelse(testing_data$MonthFactor == "August", 1, 0)
+testing_data$IsSeptember <- ifelse(testing_data$MonthFactor == "September", 1, 0)
+testing_data$IsOctober <- ifelse(testing_data$MonthFactor == "October", 1, 0)
+testing_data$IsNovember <- ifelse(testing_data$MonthFactor == "November", 1, 0)
+testing_data$IsDecember <- ifelse(testing_data$MonthFactor == "December", 1, 0)
+```
+
+
+```{r}
+
+y_pred_test <- predict(mod_final1, newdata = testing_data)
+
+y_test_mean <- mean(testing_data$AccordSales)
+
+ss_res <- sum((testing_data$AccordSales - y_pred_test)^2)
+
+ss_tot <- sum((testing_data$AccordSales - y_test_mean)^2)
+
+osr2 <- 1 - (ss_res / ss_tot)
+osr2
+
+```
+
+OSR square for testing data is -213% of the variance in the dependent variable in the testing set is explained by the model. Multiple R-squared for training data is 0.7439 indicates that 74.39% of the variance in the dependent variable in the training set is explained by the independent variable. Lower OSR square value for the testing data indicates that the model's performance drops on unseen data, and that might be due to the sample size of testing data is small, and that might also due to that we only consider the CPIALL, CPIEnergy and month dummy variables factors, where we might need more useful predictors.
+
+\newpage
+
+d)
+I chose federal funds rate.When depository institutions lend and borrow federal funds from one to another overnight, that interest rate is called federal funds rate(Board of Governors of the Federal Reserve System, 2024). I chose interest rate as is can significantly influence consumer decisions when I learned economics, because when interest rate goes down, investment decreases, and vice versa. 
+
+
+```{r}
+library(lubridate)
+data111 <- read_csv("interest rate.csv") #(Board of Governors of the Federal Reserve System, 2024)
+
+#Convert the DATE column to date format
+data111$DATE <- as.Date(data111$DATE, format = "%m/%d/%Y")
+
+#Extract the month name and year
+data111 <- data111 %>%
+  mutate(Month = format(DATE, "%B"),
+         Year = year(DATE))
+
+#Select and reorder columns
+new_data <- data111 %>%
+  select(Month, Year, FEDFUNDS)
+
+#column of FEDFUNDS represents federal funds rate which is a kind of interest rate.
+
+new_data
+
+```
+
+
+```{r}
+#Extract the third column from new_data as a vector
+new_data_col <- new_data[[3]]
+
+#append them in my original training data and testing data
+training_data[[colnames(new_data)[3]]] <- new_data_col[1:60]
+
+
+testing_data[[colnames(new_data)[3]]] <- new_data_col[61:119]
+
+```
+
+
+```{r}
+mod_interest <- lm(AccordSales ~   CPIEnergy + CPIAll 
+                + FEDFUNDS + IsJanuary + IsFebruary + IsMarch + IsMay + IsJune + 
+                IsJuly + IsAugust + IsSeptember + IsOctober + IsNovember + IsDecember, 
+                data = training_data)
+
+summary(mod_interest)
+
+vif_interest <- vif(mod_interest)
+vif_interest
+```
+
+It did not add any predictive value, I think that should due to that CPI and interest rate is closely relevant, and that is also verified by the VIF.
+
+
+
+
+
+\newpage
+
+References
+
+Board of Governors of the Federal Reserve System (US), Federal Funds Effective Rate [FEDFUNDS], retrieved from FRED, Federal Reserve Bank of St. Louis; https://fred.stlouisfed.org/series/FEDFUNDS, September 21, 2024.
