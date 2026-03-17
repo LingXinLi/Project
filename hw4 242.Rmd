@@ -1,0 +1,219 @@
+---
+title: "hw4 242"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(caret)
+library(pROC)
+library(rpart)
+library(tidyverse)
+library(randomForest)
+library(MASS)
+library(gbm)
+```
+
+```{r}
+setwd("C:/Users/Cynthiali0621/Desktop")
+train_data <- read_csv("Letters_train_2024.csv") 
+test_data <- read_csv("Letters_test_2024.csv") 
+
+
+```
+
+```{r}
+train_data <- train_data %>% mutate(isB = ifelse(letter == "B", "Yes", "No"))
+test_data <- test_data %>% mutate(isB = ifelse(letter == "B", "Yes", "No"))
+```
+
+1.(a)
+```{r}
+baseline_accuracy <- mean(test_data$isB == "No")
+cat("1 (a) Baseline accuracy:", baseline_accuracy, "\n")
+```
+
+1.(b)
+
+```{r}
+train_data$isB_numeric <- ifelse(train_data$isB == "Yes", 1, 0)
+test_data$isB_numeric <- ifelse(test_data$isB == "Yes", 1, 0)
+logistic_model <- glm(isB_numeric ~ . -letter -isB, data = train_data, family = "binomial")
+
+#Predict on test data
+logistic_preds <- predict(logistic_model, newdata = test_data, type = "response")
+logistic_preds_binary <- ifelse(logistic_preds > 0.5, 1, 0)
+
+#Logistic regression accuracy on test data
+logistic_accuracy <- mean(logistic_preds_binary == test_data$isB_numeric)
+cat("1 (b) Logistic regression accuracy:", logistic_accuracy, "\n")
+
+
+```
+
+1.(c)
+```{r}
+logistic_roc <- roc(test_data$isB, logistic_preds)
+logistic_auc <- auc(logistic_roc)
+cat("1 (c) Logistic regression AUC:", logistic_auc, "\n")
+
+```
+
+1.(d)
+```{r}
+train_data$isB_factor <- factor(train_data$isB, levels = c("No", "Yes"))
+test_data$isB_factor <- factor(test_data$isB, levels = c("No", "Yes"))
+#cross-validation manually for different cp values
+set.seed(2024)
+cv_results <- lapply(seq(0.01, 0.1, by = 0.01), function(cp_value) {
+  model <- rpart(isB_factor ~ . -letter -isB -isB_numeric, data = train_data,
+                 method = "class", control = rpart.control(cp = cp_value))
+  preds <- predict(model, newdata = test_data, type = "class")
+  accuracy <- mean(preds == test_data$isB_factor)
+  return(data.frame(cp = cp_value, accuracy = accuracy))
+})
+
+cv_results_df <- do.call(rbind, cv_results)
+
+#best cp value based on the highest accuracy
+best_result <- cv_results_df[which.max(cv_results_df$accuracy), ]
+best_cp <- best_result$cp
+
+#train the final CART model using the best cp
+final_cart_model <- rpart(isB_factor ~ . -letter -isB -isB_numeric, data = train_data,
+                          method = "class", control = rpart.control(cp = best_cp))
+
+#Predict on the test set and calculate accuracy
+cart_preds <- predict(final_cart_model, newdata = test_data, type = "class")
+cart_accuracy <- mean(cart_preds == test_data$isB_factor)
+
+cat("\n1 (d) Selected ccp_alpha:", best_cp, "\n")
+cat("1 (d) CART model accuracy on the test set:", cart_accuracy, "\n")
+
+```
+I ran different CART models using various ccp values and checked how well each model performed on the test set. I picked the ccp_alpha value that gave the highest accuracy. The final CART model, using ccp_alpha of 0.01, had an accuracy of about 92.62% on the test set.
+
+
+1.(e)
+```{r}
+train_data <- train_data[, !names(train_data) %in% c("Unnamed: 0")]
+test_data <- test_data[, !names(test_data) %in% c("Unnamed: 0")]
+#Random Forest model
+set.seed(2024)
+rf_model <- randomForest(isB_factor ~ . -letter -isB -isB_numeric, data = train_data)
+
+#Predict on the test set
+rf_preds <- predict(rf_model, newdata = test_data)
+
+#accuracy on the test set
+rf_accuracy <- mean(rf_preds == test_data$isB_factor)
+cat("\n1 (e) Random Forest model accuracy on the test set:", rf_accuracy, "\n")
+
+```
+
+1.(f)
+random forest has the highest accuracy. accuracy is more important because it ensures the model makes correct predictions. Interpretability is less important here since the main goal is to get the highest number of correct results.
+
+2.(a)
+```{r}
+most_frequent_class <- names(sort(table(train_data$letter), decreasing = TRUE))[1]
+baseline_accuracy_multi <- mean(test_data$letter == most_frequent_class)
+cat("2 (a) Baseline accuracy for multi-class:", baseline_accuracy_multi, "\n")
+
+```
+
+
+2(b)
+```{r}
+#Clean constant column
+constant_columns <- sapply(train_data[, -which(names(train_data) %in% c("letter", "isB", "isB_numeric", "isB_factor"))], function(col) length(unique(col)) == 1)
+constant_columns <- names(train_data)[constant_columns]
+cat("Constant columns:\n")
+train_data_filtered <- train_data[, !names(train_data) %in% constant_columns]
+test_data_filtered <- test_data[, !names(test_data) %in% constant_columns]
+
+#LDA model
+lda_model <- lda(letter ~ . -isB -isB_numeric -isB_factor, data = train_data_filtered)
+#Predict on test data
+lda_preds <- predict(lda_model, newdata = test_data_filtered)$class
+lda_accuracy <- mean(lda_preds == test_data$letter)
+
+cat("2 (b) LDA model accuracy on the test set:", lda_accuracy, "\n")
+
+```
+
+2(c)
+```{r}
+set.seed(2024)
+cart_model_multi <- train(letter ~ . -isB, data = train_data, method = "rpart",
+                          trControl = trainControl(method = "cv", number = 5))
+
+#Predict on test data
+cart_preds_multi <- predict(cart_model_multi, newdata = test_data)
+cart_accuracy_multi <- mean(cart_preds_multi == test_data$letter)
+cat("2 (c) CART model accuracy for multi-class:", cart_accuracy_multi, "\n")
+
+```
+I used 5-fold cross-validation to train multiple CART models and find the best cp value that provided the highest average accuracy. The CART model selected through this process achieved an accuracy 0.7475936 on the test set.
+
+
+2(d)
+
+```{r}
+train_data$letter <- as.factor(train_data$letter)
+test_data$letter <- as.factor(test_data$letter)
+set.seed(2024)
+bagging_model <- randomForest(letter ~ . -isB -isB_numeric -isB_factor, data = train_data)
+
+#Predict on the test set
+bagging_preds <- predict(bagging_model, newdata = test_data)
+#Calculate accuracy on the test set
+bagging_accuracy <- mean(bagging_preds == test_data$letter)
+cat("2 (d) Bagging model accuracy:", bagging_accuracy, "\n")
+
+
+```
+
+2(e)
+
+```{r}
+set.seed(2024)
+rf_cv_model <- train(letter ~ . -isB -isB_numeric -isB_factor, data = train_data, method = "rf",
+                     trControl = trainControl(method = "cv", number = 3),  
+                     tuneGrid = expand.grid(mtry = c(2, 4, 6)))  #select less fold and range for faster speed of running time in r
+
+#Predict on the test set
+rf_cv_preds <- predict(rf_cv_model, newdata = test_data)
+rf_cv_accuracy <- mean(rf_cv_preds == test_data$letter)
+cat("2 (e) Random Forest with cross-validation accuracy:", rf_cv_accuracy, "\n")
+
+
+```
+
+
+
+2(f)
+```{r}
+set.seed(2024)
+gbm_model <- gbm(letter ~ . -isB -isB_numeric -isB_factor, data = train_data, distribution = "multinomial",
+                 n.trees = 300,  
+                 interaction.depth = 15,  
+                 cv.folds = 3,  
+                 n.cores = 1) 
+
+#Predict on the test set
+gbm_preds <- predict(gbm_model, newdata = test_data, n.trees = 300, type = "response")
+gbm_final_preds <- colnames(gbm_preds)[apply(gbm_preds, 1, which.max)]
+
+#Calculate accuracy on the test set
+gbm_accuracy <- mean(gbm_final_preds == test_data$letter)
+cat("2 (f) Gradient Boosting accuracy:", gbm_accuracy, "\n")
+
+
+```
